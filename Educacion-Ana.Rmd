@@ -1,0 +1,338 @@
+---
+title: "Educacion-Ana"
+author: "Ana María Vásquez Orrego"
+date: "24/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Se importan las librerias que se usarán para llevar a cabo el trabajo.
+```{r}
+library(ggplot2)
+library(corrplot)
+library(data.table)
+library(googledrive)
+library(modeest)
+#library(rgdal)
+library(leaflet)
+library(tidyverse)
+```
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(corrplot)
+library(scales)
+library(data.table)
+
+library(leaflet)
+library(htmlwidgets)
+
+library(maptools)
+library(udunits2)
+library(rgdal)
+```
+
+Se lee la base de datos encuesta calidad de vida y el diccionario.
+```{r}
+ecv <- fread("/home/amvasquezo/Descargas/encuesta_calidad_vida.csv",na=c(NULL,"-99","-98","-88","-77"))
+
+#ecv2 <- read.csv2("/home/amvasquezo/Descargas/diccionario_calidad_vida.csv", encoding="UTF-8",na=NULL)
+```
+
+Se realiza un resumen de la base de datos
+```{r}
+head(ecv)
+dim(ecv)
+glimpse(ecv)
+```
+
+Se filtra la base de datos por el último año encuestado (2018) y se seleccionan las variables que se usarán para la dimensión educación.
+```{r}
+dimEdu <- subset(ecv, encuesta_calidad.año=="2018", select=c(encuesta_calidad.barrio, encuesta_calidad.estrato, encuesta_calidad.p_15, encuesta_calidad.p_18, encuesta_calidad.p_35, encuesta_calidad.p_45, encuesta_calidad.p_49, encuesta_calidad.p_262),na=c(NULL,"-99","-98","-88","-77"))
+```
+
+Se cuentan los null de la base de datos 
+```{r}
+any(is.na(dimEdu))
+na_count <-sapply(ecv, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+na_count
+```
+
+
+Se renombran las columnas de la base de datos.
+```{r}
+names(dimEdu)[1]<-"Barrio"
+names(dimEdu)[2]<-"Estrato"
+names(dimEdu)[3]<-"Sexo"
+names(dimEdu)[4]<-"Años_cumplidos"
+names(dimEdu)[5]<-"Sabe_leer_y_escribir"
+
+
+names(dimEdu)[6]<-"Último_nivel_de_estudio_aprobado"
+
+names(dimEdu)[7]<-"Caracter_del_establecimiento_educativo"
+names(dimEdu)[8]<-"Educación_brindada_es"
+
+names(dimEdu)
+```
+Se renombra los valores de las salidas de estas columnas.
+```{r}
+#colnames(dimEdu$Estrato) = c("Estrato_1", "Estrato_2", "Estaro_3", "Estrato_4", "Estrato_5", "Estrato_6")
+#colnames(dimEdu$Estrato)
+
+dimEdu$Estrato <- factor(dimEdu$Estrato)
+levels(dimEdu$Estrato) <- c("Estrato_1", "Estrato_2", "Estaro_3", "Estrato_4", "Estrato_5", "Estrato_6")
+dimEdu$Estrato
+
+dimEdu$Sexo <- factor(dimEdu$Sexo)
+levels(dimEdu$Sexo) <- c("Masculino", "Femenino")
+dimEdu$Sexo
+
+dimEdu$Sabe_leer_y_escribir <- factor(dimEdu$Sabe_leer_y_escribir)
+levels(dimEdu$Sabe_leer_y_escribir) <- c("Sí", "No")
+dimEdu$Sabe_leer_y_escribir
+
+
+dimEdu$Último_nivel_de_estudio_aprobado <- factor(dimEdu$Último_nivel_de_estudio_aprobado)
+levels(dimEdu$Último_nivel_de_estudio_aprobado) <- c("Ninguno", "Salacuna","Primaria", "Secundaria","Media académica_o_Normalista", "Media_Técnica","Tecnológico", "Universidad","Especializacion", "Maestria","Doctorado")
+dimEdu$Último_nivel_de_estudio_aprobado
+
+dimEdu$Caracter_del_establecimiento_educativo <- factor(dimEdu$Caracter_del_establecimiento_educativo)
+levels(dimEdu$Caracter_del_establecimiento_educativo) <- c("Público","Privado")
+dimEdu$Caracter_del_establecimiento_educativo
+
+dimEdu$Educación_brindada_es <- factor(dimEdu$Educación_brindada_es)
+levels(dimEdu$Educación_brindada_es) <- c("Mejorado","Igual","Empeorado"
+)
+dimEdu$Educación_brindada_es
+
+```
+Ver los Na's de la base de datos de la dimensión educación
+```{r}
+any(is.na(dimEdu))
+na_count <-sapply(dimEdu, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+na_count
+```
+Proporciones y Promedios por vivienda con la funcion tapply y prop.table
+Separamos por niveles las que son variables discretas
+
+Proporción por Último_nivel_de_estudio_aprobado
+```{r}
+nivel_estudio<-table(dimEdu[,c("Barrio","Último_nivel_de_estudio_aprobado")])
+nivel_estudio <- round(prop.table(nivel_estudio),6)
+nivel_estudio
+dim(nivel_estudio)
+```
+
+Proporcion por Sabe_leer_y_escribir
+```{r}
+lee_escribe<-table(dimEdu[,c("Barrio","Sabe_leer_y_escribir")])
+lee_escribe <- round(prop.table(lee_escribe),6)
+lee_escribe
+dim(lee_escribe)
+```
+
+Proporcion por Caracter_del_establecimiento_educativo
+```{r}
+estableccimiento_educativo<-table(dimEdu[,c("Barrio","Caracter_del_establecimiento_educativo")])
+estableccimiento_educativo <- round(prop.table(estableccimiento_educativo),6)
+estableccimiento_educativo
+dim(estableccimiento_educativo)
+```
+
+Proporcion por Educación_brindada_es
+```{r}
+educacion_brindada<-table(dimEdu[,c("Barrio","Educación_brindada_es")])
+educacion_brindada <- round(prop.table(educacion_brindada),6)
+educacion_brindada
+dim(educacion_brindada)
+```
+
+Proporcion por Estrato
+```{r}
+estrato <- table(dimEdu[,c("Barrio","Estrato")]) 
+estrato <- round(prop.table(estrato),6)
+estrato
+dim(estrato)
+```
+
+Proporcion por Años_cumplidos
+```{r}
+edad <- round(prop.table(dimEdu$Años_cumplidos),4)*100
+edad
+#el tapply no me funciona
+#edad <- tapply(Edad1, dimEdu$Barrio,  mean, na.rm= TRUE)
+#edad
+```
+
+Se realiza la matriz demográfica
+```{r}
+matEdu <- cbind(estrato, educacion_ultimos_12_meses, educacion_brindada, estableccimiento_educativo, esutudia_actualmente, año_estudaido_retiro,lee_escribe,nivel_estudio, edad)
+matEdu
+dim(matEdu)
+colnames(matEdu)
+```
+
+Ver los NA´s de la base de la dimension educación
+```{r}
+any(is.na(matEdu))
+na_count <-sapply(matEdu, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+na_count
+```
+
+Graficas Descriptivas
+
+GrDm_1 <- ggplot(DimDemo1,aes(x=Estrato ,y = Edad, col = Planificacion , size = Edad)) + 
+  geom_point(size = 3,alpha = I(0.7))  + geom_smooth(fill =NA)+
+  labs(x = "Estrato" , y = "Edad") + ggtitle("Edad en los Estratos y Planificación de las personas")
+GrDm_1
+
+```{r}
+matrizEdu<- as.data.frame(matEdu)
+```
+
+```{r}
+colnames(matrizEdu)
+```
+En qué estrato las personas presentan un mayor analfabetismo?
+
+```{r}
+g_lee_escribe <- ggplot(matrizEdu,aes(x=No ,y = Estrato_2)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "No sabe leer" , y = "Estrato 2") + ggtitle("Personas que no saben leer en estrato 2")
+g_lee_escribe
+```
+
+En que estratos las personas fueron más a universidades públicas y en que estratos fueron más a universidades privadas?
+```{r}
+e1_u_publico <- ggplot(matrizEdu,aes(x=Público ,y = Estrato_1)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Establecimiento educativo público" , y = "Estrato 1") + ggtitle("Personas de estrato 1 que estudiaron en una universidad pública")
+e1_u_publico
+```
+```{r}
+e2_u_publico <- ggplot(matrizEdu,aes(x=Público ,y = Estrato_2)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Establecimiento educativo público" , y = "Estrato 2") + ggtitle("Personas de estrato 2 que estudiaron en una universidad pública")
+e2_u_publico
+```
+
+```{r}
+e3_u_publico <- ggplot(matrizEdu,aes(x=Público ,y = Estaro_3)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Establecimiento educativo público" , y = "Estrato 3") + ggtitle("Personas de estrato 3 que estudiaron en una universidad pública")
+e3_u_publico
+```
+
+```{r}
+e4_u_publico <- ggplot(matrizEdu,aes(x=Público ,y = Estrato_4)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Establecimiento educativo público" , y = "Estrato 4") + ggtitle("Personas de estrato 4 que estudiaron en una universidad pública")
+e4_u_publico
+```
+```{r}
+e6_u_privado <- ggplot(matrizEdu,aes(x=Privado ,y = Estrato_6)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Establecimiento educativo privado" , y = "Estrato 4") + ggtitle("Personas de estrato 6 que estudiaron en una universidad privada")
+e6_u_privado
+```
+
+
+En que estratos las personas tienen una la percepción de que la educación mejoró o sigue siendo igual?
+```{r}
+e2_edu_mejor <- ggplot(matrizEdu,aes(x=Mejorado ,y = Estrato_2)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Percepción del nivel de educación" , y = "Estrato 2") + ggtitle("Personas de estrato 2 que creen que el nivel de educación ha mejorado")
+e2_edu_mejor
+```
+
+```{r}
+e2_edu_igual <- ggplot(matrizEdu,aes(x=Igual ,y = Estrato_2)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Percepción del nivel de educación" , y = "Estrato 2") + ggtitle("Personas de estrato 2 que creen que el nivel de educación sigue igual")
+e2_edu_igual
+```
+
+```{r}
+e3_edu_mejor <- ggplot(matrizEdu,aes(x=Mejorado ,y = Estaro_3)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Percepción del nivel de educación" , y = "Estrato 3") + ggtitle("Personas de estrato 3 que creen que el nivel de educación ha mejorado")
+e3_edu_mejor
+```
+```{r}
+e3_edu_igual <- ggplot(matrizEdu,aes(x=Igual ,y = Estaro_3)) + geom_point(size = 2,alpha = I(0.9), col="000010")+ labs(x = "Percepción del nivel de educación" , y = "Estrato 3") + ggtitle("Personas de estrato 3 que creen que el nivel de educación sigue igual")
+e3_edu_igual
+```
+
+
+----------------------------------------------------------------------------------------------------------------------
+Sabe leer y escribir? Agrupado por estrato
+```{r}
+lee_escribe<-matrizEdu[,c("Estrato_1", "Estrato_2", "Estaro_3", "Estrato_4", "Estrato_5", "Estrato_6","Sí", "No")]
+pairs(lee_escribe)
+```
+
+Percepción de si la educación ha mejorado, sigue igual o ha empeorado, agrupado por barrio.
+```{r}
+la_educacion_ha<-matrizEdu[,c("Estrato_1", "Estrato_2", "Estaro_3", "Estrato_4", "Estrato_5", "Estrato_6","Mejorado", "Igual", "Empeorado")]
+pairs(la_educacion_ha)
+```
+Es la universidad en la que estudió pública o privada?
+```{r}
+establecimiento_educativo<-matrizEdu[,c("Estrato_1", "Estrato_2", "Estaro_3", "Estrato_4", "Estrato_5", "Estrato_6","Público", "Privado", "Universidad1")]
+pairs(establecimiento_educativo)
+```
+
+
+Se realiza el agrupamiento jerarquico, Dendograma
+```{r}
+matrizEduNor<- scale(matrizEdu)
+matrizEduNor
+
+library(ClustOfVar)
+tree <- hclustvar(matrizEduNor)
+plot(tree)
+rect.hclust(tree, k=4, border=2:10)
+
+```
+
+Se realiza el agrupamiento jerarquico con el método del codo.
+```{r}
+set.seed(1234)
+matrizEduVec <- vector()
+for(i in 1:20){
+  matrizEduVec[i] <- sum(kmeans(matrizEduNor, i)$withinss)
+}
+
+Gr_matrizEduVec <- ggplot() + geom_point(aes(x = 1:20, y = matrizEduVec), color = 'green') + 
+  geom_line(aes(x = 1:20, y = matrizEduVec), color = 'green') + 
+  ggtitle("Método del codo para la dimensión educación") + 
+  xlab('Cantidad de Centroides k') + 
+  ylab('matrizEduVec')
+
+Gr_matrizEduVec
+```
+
+
+
+
+
+Mapas???
+```{r}
+##Mapas
+#Leer Archivo que contiene informacion geografica de los barrios y veredas de Medellín 
+barrios_med <- readOGR (dsn="/home/amvasquezo/Descargas/Barrio_Vereda.shp",layer="Barrio_Vereda", encoding = "UTF-8")
+nombres_barrios <- iconv(barrios_med@data$NOMBRE,"UTF-8","ISO_8859-1")
+
+#Mapa simple
+m=leaflet(barrios_med)
+m=addTiles(m)
+m
+
+#Superoponemos los barrios
+
+m=addPolygons(m,popup=nombres_barrios)
+m=addTiles(m)
+m
+
+#Color a los barrios
+colores=sample(x=c("orange","green","yellow"),size=length(nombres_barrios),replace=TRUE)
+m=addPolygons(m,popup=nombres_barrios,color=colores)
+m
+
+```
+
+
+
+
+
+Conclusiones:
+Las personas de escasos recursos, es decir, las que pertenecen a los más bajos estratos, son las que presentan un mayor analfabetismo. Estas mismas comunidades presentan una menor cantidad de personas que continuaron sus estudios superiores y que cuentan con el título de magister o doctor. La percepción en la educación también se ve involucrada en estos aspectos, pero las personas de estratos más altos muestran un nivel de exigencia mayor.
